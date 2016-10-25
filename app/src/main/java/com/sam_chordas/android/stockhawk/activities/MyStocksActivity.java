@@ -1,6 +1,7 @@
-package com.sam_chordas.android.stockhawk.ui;
+package com.sam_chordas.android.stockhawk.activities;
 
 import android.app.LoaderManager;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.CursorLoader;
 import android.content.Intent;
@@ -8,6 +9,7 @@ import android.content.Loader;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.Uri;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.app.ActionBar;
 import android.os.Bundle;
@@ -19,6 +21,7 @@ import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.sam_chordas.android.stockhawk.R;
@@ -35,6 +38,14 @@ import com.google.android.gms.gcm.Task;
 import com.melnykov.fab.FloatingActionButton;
 import com.sam_chordas.android.stockhawk.touch_helper.SimpleItemTouchHelperCallback;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
+
+import butterknife.Bind;
+import butterknife.ButterKnife;
+
 public class MyStocksActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor>{
 
   /**
@@ -43,7 +54,9 @@ public class MyStocksActivity extends AppCompatActivity implements LoaderManager
 
   /**
    * Used to store the last screen title. For use in {@link #restoreActionBar()}.
+
    */
+
   private CharSequence mTitle;
   private Intent mServiceIntent;
   private ItemTouchHelper mItemTouchHelper;
@@ -52,6 +65,8 @@ public class MyStocksActivity extends AppCompatActivity implements LoaderManager
   private Context mContext;
   private Cursor mCursor;
   boolean isConnected;
+  TextView mConnection;
+
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +79,11 @@ public class MyStocksActivity extends AppCompatActivity implements LoaderManager
     isConnected = activeNetwork != null &&
         activeNetwork.isConnectedOrConnecting();
     setContentView(R.layout.activity_my_stocks);
+
+    if(savedInstanceState != null){
+      getLoaderManager().initLoader(CURSOR_LOADER_ID, null, this);
+    }
+
     // The intent service is for executing immediate pulls from the Yahoo API
     // GCMTaskService can only schedule tasks, they cannot execute immediately
     mServiceIntent = new Intent(this, StockIntentService.class);
@@ -73,7 +93,7 @@ public class MyStocksActivity extends AppCompatActivity implements LoaderManager
       if (isConnected){
         startService(mServiceIntent);
       } else{
-        networkToast();
+        emptyView();
       }
     }
     RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
@@ -84,8 +104,10 @@ public class MyStocksActivity extends AppCompatActivity implements LoaderManager
     recyclerView.addOnItemTouchListener(new RecyclerViewItemClickListener(this,
             new RecyclerViewItemClickListener.OnItemClickListener() {
               @Override public void onItemClick(View v, int position) {
-                //TODO:
-                // do something on item click
+                Intent intent = new Intent(mContext, DetailActivity.class);
+                mCursor.moveToPosition(position);
+                intent.putExtra(getResources().getString(R.string.string_symbol), mCursor.getString(mCursor.getColumnIndex(getResources().getString(R.string.string_symbol))));
+                startActivity(intent);
               }
             }));
     recyclerView.setAdapter(mCursorAdapter);
@@ -123,7 +145,7 @@ public class MyStocksActivity extends AppCompatActivity implements LoaderManager
               })
               .show();
         } else {
-          networkToast();
+          emptyView();
         }
 
       }
@@ -155,16 +177,29 @@ public class MyStocksActivity extends AppCompatActivity implements LoaderManager
     }
   }
 
+  public void networkToast(){
+    Toast.makeText(getApplicationContext(), getResources().getString(R.string.network_toast), Toast.LENGTH_SHORT).show();
+  }
 
+
+  private void emptyView(){
+    mConnection = (TextView)findViewById(R.id.empty_no_connection);
+    if(mConnection != null){
+      networkToast();
+    }
+    if(!isConnected){
+      mConnection.setVisibility(View.VISIBLE);
+    }else {
+      mConnection.setVisibility(View.GONE);
+    }
+  }
   @Override
   public void onResume() {
     super.onResume();
     getLoaderManager().restartLoader(CURSOR_LOADER_ID, null, this);
   }
 
-  public void networkToast(){
-    Toast.makeText(mContext, getString(R.string.network_toast), Toast.LENGTH_SHORT).show();
-  }
+
 
   public void restoreActionBar() {
     ActionBar actionBar = getSupportActionBar();
@@ -216,6 +251,12 @@ public class MyStocksActivity extends AppCompatActivity implements LoaderManager
   public void onLoadFinished(Loader<Cursor> loader, Cursor data){
     mCursorAdapter.swapCursor(data);
     mCursor = data;
+    mConnection = (TextView) findViewById(R.id.empty_no_connection);
+    if(mCursorAdapter.getItemCount() == 0){
+      mConnection.setVisibility(View.VISIBLE);
+    }else{
+      mConnection.setVisibility(View.GONE);
+    }
   }
 
   @Override
