@@ -35,7 +35,11 @@ public class StockIntentService extends IntentService {
       args.putString("symbol", intent.getStringExtra("symbol"));
     }
 
+    stockTaskService.onRunTask(new TaskParams(intent.getStringExtra("tag"), args));
+
+
     try{
+      String intent1 = intent.getStringExtra("tag");
       stockTaskService.onRunTask(new TaskParams(intent.getStringExtra("tag"), args));
     }catch (Exception e){
       final Handler mHandler = new Handler(getMainLooper());
